@@ -1,0 +1,54 @@
+---
+title: "features per taxa"
+author: "Colin J. Brislawn"
+date: "June 29, 2022"
+output: html_document
+---
+
+```{r setup0, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(phyloseq)
+library(tidyverse)
+```
+
+
+```{r load}
+# data(GlobalPatterns)
+# data(esophagus)
+data(enterotype)
+# data(soilrep)
+
+ps <- GlobalPatterns
+
+```
+
+## Goal
+
+>I trying to generate box plots showing mean, max, min number of unique ASV in Firmicutes (and other phyla, families) in each class and subclass.
+
+[x-link to form post](https://forum.qiime2.org/t/absolute-number-of-species-or-features-per-taxa-per-sample/23390/2)
+
+```{r}
+# Melt phyloseq object into data frame, with
+# each row being a single feature.
+ps.melt <- ps %>% psmelt()
+
+# Now we can group by SampleType and count total number of Taxa in each
+ps.melt %>%
+  group_by(SampleType, Phylum) %>%
+  summarise(nFeatures = n()) %>%
+  filter(nFeatures > 1000) %>%
+  ggplot(aes(x = SampleType, y = nFeatures, color = Phylum)) +
+  scale_y_log10() +
+  geom_point()
+
+ps.melt %>%
+  group_by(SampleType, Phylum, Class, Order, Family) %>%
+  summarise(nFeatures = n()) %>%
+  ggplot(aes(x = SampleType, y = nFeatures)) +
+  scale_y_log10() +
+  geom_boxplot()
+
+```
+

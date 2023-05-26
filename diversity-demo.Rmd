@@ -1,0 +1,91 @@
+---
+title: "Alpha diversity demo with Tidyverse and Vegan"
+author: "Colin J. Brislawn"
+date: "June 29, 2022"
+output: html_document
+---
+
+```{r setup0, include=FALSE}
+# library(phyloseq)
+library("tidyverse")
+library("vegan")
+library("kableExtra")
+
+knitr::opts_chunk$set(echo = TRUE, cache = F)
+
+theme_set(theme_bw())
+theme_update(
+  strip.background = element_blank(),
+  axis.text.x = element_text(angle = -20, hjust = 0)
+)
+```
+
+```{r lint, include=F, eval=F}
+library(styler)
+styler:::style_active_file()
+
+library(lintr)
+lintr::lint("diversity-demo.Rmd",
+  linters = with_defaults(
+    line_length_linter = line_length_linter(120),
+    object_name_linter = NULL,
+    commented_code_linter = NULL
+  )
+)
+```
+
+## Goal
+
+>I am reporting Chao1 (species richness) and Shannon (eveness) to characterize alpha diversity in different microbiomes. Both indexes are negatively correlated in my data: as Chao1 increases, Shannon decreases. Is that possible?
+
+[x-link to form post](https://forum.qiime2.org/t/chao1-and-shannon-negatively-correlated/23675)
+
+```{r, fig.width=6, fig.height=4}
+df <- rbind(
+  data.frame(
+    group = "Baseline",
+    count = c(90, 50, 50, 50, 2, 2, 2, 2, 1, 1, 1, 1)
+  ),
+  data.frame(
+    group = "No singletons",
+    count = c(90, 50, 50, 50, 2, 2, 2, 2, 2, 2, 2, 2)
+  ),
+  data.frame(
+    group = "Less even",
+    count = c(140, 50, 50, 2, 2, 2, 2, 2, 1, 1, 1, 1)
+  )
+) %>%
+  mutate(id = rep(1:12, 3))
+
+
+df %>%
+  pivot_wider(names_from = group, values_from = count) %>%
+  kable()
+
+df %>%
+  ggplot(aes(x = id, y = count, fill = group)) +
+  geom_bar(stat = "identity") +
+  facet_grid(group ~ .) +
+  geom_text(label = df$count, nudge_y = 13) +
+  theme(legend.position = "none")
+
+df.alpha <- df %>%
+  group_by(group) %>%
+  summarise(
+    Chao1 = estimateR(count)["S.chao1"],
+    Shannon = diversity(count, "shannon")
+    # Observed = specnumber(count)
+  ) %>%
+  pivot_longer(-1)
+
+df.alpha %>%
+  pivot_wider(names_from = name, values_from = value) %>%
+  kable()
+
+df.alpha %>%
+  ggplot(aes(x = group, value, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(label = round(df.alpha$value, 2), nudge_y = rep(c(.5, .1), 3)) +
+  facet_wrap(~name, scales = "free") +
+  theme(legend.position = "none")
+```
