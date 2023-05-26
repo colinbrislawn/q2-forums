@@ -1,2 +1,4 @@
-/diversity-demo_cache
-/diversity-demo_files
+# R
+*_cache
+*_files
+.Rhistory
