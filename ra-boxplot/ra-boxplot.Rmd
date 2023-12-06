@@ -1,0 +1,38 @@
+---
+title: "RA Boxplot"
+author: "Colin J. Brislawn"
+date: "Dec 6, 2023"
+output: html_document
+---
+
+```{r setup0, include=FALSE}
+# library(phyloseq)
+library("tidyverse")
+# library("vegan")
+library("kableExtra")
+
+knitr::opts_chunk$set(echo = TRUE, cache = F)
+
+theme_set(theme_bw())
+theme_update(
+  strip.background = element_blank(),
+  axis.text.x = element_text(angle = -20, hjust = 0)
+)
+```
+
+```{r lint, include=F, eval=F}
+library(styler)
+styler:::style_active_file()
+
+library(lintr)
+lintr::lint("ra-boxplot.Rmd",
+  linters = with_defaults(
+    line_length_linter = line_length_linter(120),
+    object_name_linter = NULL,
+    commented_code_linter = NULL
+  )
+)
+```
+
+## Makeboxplots from CSV file of relative abundances
+
