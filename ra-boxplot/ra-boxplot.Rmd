@@ -1,17 +1,18 @@
 ---
 title: "RA Boxplot"
 author: "Colin J. Brislawn"
-date: "Dec 6, 2023"
-output: html_document
+date: "June 21, 2024"
+output:
+  html_document:
+    toc: true
 ---
 
-```{r setup0, include=FALSE}
-# library(phyloseq)
+```{r setup0, include=T}
 library("tidyverse")
 # library("vegan")
 library("kableExtra")
 
-knitr::opts_chunk$set(echo = TRUE, cache = F)
+knitr::opts_chunk$set(echo = TRUE, cache = FALSE)
 
 theme_set(theme_bw())
 theme_update(
@@ -20,19 +21,108 @@ theme_update(
 )
 ```
 
-```{r lint, include=F, eval=F}
+```{r lint, include=F, eval=T}
 library(styler)
-styler:::style_active_file()
+style_dir(strict = TRUE)
 
 library(lintr)
 lintr::lint("ra-boxplot.Rmd",
-  linters = with_defaults(
-    line_length_linter = line_length_linter(120),
+  linters = linters_with_defaults(
+    # line_length_linter = line_length_linter(120),
     object_name_linter = NULL,
     commented_code_linter = NULL
   )
 )
 ```
 
-## Makeboxplots from CSV file of relative abundances
+## Import directly from `taxa_barplot.qzv`
 
+This example data is the output of running `qiime taxa barplot` from the
+[pd-mice tutorial](https://docs.qiime2.org/2024.5/tutorials/pd-mice/#taxonomy-barchart).
+
+```{r functions}
+import_taxa_barplot <- function(qvz.path) {
+  csv.name <- unzip(qvz.path, list = TRUE, exdir = tempdir()) |>
+    filter(str_detect(.data$Name, "level-7.csv"))
+
+  # Note that this long format perserves zeros from the matrix
+  return(
+    unzip(qvz.path, files = csv.name$Name, exdir = tempdir()) |>
+      read_csv() |>
+      pivot_longer(
+        cols = starts_with("k__"), names_to = "tax", values_to = "count"
+      ) |>
+      select(-starts_with("Unassigned"))
+  )
+}
+```
+
+```{r }
+# Import file
+taxa_barplot <- paste0(
+  # "path/if/needed/",
+  "taxa_barplot.qzv"
+) |>
+  import_taxa_barplot() |>
+  # Databases levels vary, so we can adjust that here
+  separate(
+    tax,
+    c("Kingdon", "Phylum", "Class", "Order", "Family", "Genus", "Species"),
+    sep = ";",
+    remove = FALSE
+  )
+
+# Roll up to higher tax level
+taxa_barplot_Phylum <- taxa_barplot |>
+  # There are no zeros in boxplots
+  filter(count > 0) |>
+  # Optionally remove unclassified taxa
+  filter(!(Phylum %in% c("__", "p__"))) |>
+  group_by(
+    index,
+    # Add your sample metadata here, like
+    mouse_id = factor(mouse_id), genotype, cage_id, donor, donor_status, days_post_transplant,
+    Phylum
+  ) |>
+  summarize(count = sum(count))
+
+# view blocked study design
+taxa_barplot_Phylum |>
+  ungroup() |>
+  select(
+    genotype, donor_status
+  ) |>
+  table()
+
+# Convert to percent
+taxa_barplot_Phylum_percent <- taxa_barplot_Phylum |>
+  ungroup(Phylum) |>
+  mutate(Percent = 100 * count / sum(count))
+
+# What's big?
+# taxa_barplot_Phylum_percent |>
+#   group_by(Phylum) |>
+#   summarize(sum = sum(Percent) / n()) |>
+#   arrange(-sum) |>
+#   kable()
+
+# And finally, ggplot() + geom_bar()
+taxa_barplot_Phylum_percent |>
+  filter(Percent > 1) |>
+  ggplot(aes(x = index, y = Percent, fill = Phylum)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_grid(~ genotype + donor, space = "free", scales = "free") +
+  scale_fill_brewer(palette = "Spectral") +
+  theme(
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank()
+  )
+
+# map(c("Figures/Fig-ra-barplot.tiff", "Figures/Fig-ra-barplot.eps"),
+#   ~ggsave(.x, width = 5, height = 3, units = "in", scale = 1.3))
+# ggsave("Fig-ra-barplot.png", width = 5, height = 3, units = "in", scale = 1.3)
+```
+
+```{r, include=F, eval=F}
+rmarkdown::render("ra-boxplot.Rmd")
+```
