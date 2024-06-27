@@ -118,3 +118,10 @@ cache_alignment : 64
 address sizes   : 36 bits physical, 48 bits virtual
 power management:
 ```
+
+```sh
+(qiime2-amplicon-2024.5) biouser@home-PC:~/bin/github-repos/q2-forums$ conda package --which /home/biouser/miniconda3/envs/qiime2-amplicon-2024.5/bin/faithpd
+/home/biouser/miniconda3/envs/qiime2-amplicon-2024.5/bin/faithpd  bioconda/linux-64::unifrac-binaries-1.4-h1d423cb_0
+```
+
+The broken binary is from [bioconda/linux-64::unifrac-binaries](https://bioconda.github.io/recipes/unifrac-binaries/README.html).
