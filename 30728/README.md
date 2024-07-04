@@ -20,6 +20,12 @@ qiime taxa filter-table \
 
 ```
 
+## Cleanup
+
+```sh
+rm -f *.qza
+```
+
 ## Posts
 
 ```md
