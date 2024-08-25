@@ -49,7 +49,7 @@ cat rep-seqs-to-sorted.uc | grep "=" | wc -l
 
 Run on full fna file from origional post.
 
-With the addition of `--p-read-orientation 'same'` the results are consistantl(ly better!)
+With the addition of `--p-read-orientation 'same'` the results are consistant and better!
 
 ```sh
 sh build-HOMD-v4.sh
@@ -58,8 +58,8 @@ sh build-HOMD-v4.sh
 time sh edit-import-class.sh rep-seqs.fna 999999 # results change at 300
 
 # now it works!
-cut -f2 rep-seq-raw-tax.tsv | grep "k__Bacteria\;" | wc -l # 2 lines
-cut -f2 rep-seq-edit-tax.tsv | grep "k__Bacteria\;" | wc -l # 313 lines
+cut -f2 rep-seq-raw-tax.tsv | grep "k__Bacteria\;" | wc -l
+cut -f2 rep-seq-edit-tax.tsv | grep "k__Bacteria\;" | wc -l
 
 cut -f2 rep-seq-raw-tax.tsv | grep "k__Bacteria\;"
 cut -f2 rep-seq-edit-tax.tsv | grep "k__Bacteria\;"
