@@ -45,10 +45,13 @@ cat rep-seqs-to-sorted.uc | wc -l
 cat rep-seqs-to-sorted.uc | grep "=" | wc -l
 ```
 
-## Does shuffeling usually change results?
+## Does subsettings change results?
 
 ```sh
+sh build-HOMD-v4.sh
+sh edit-import-class.sh
 
-
+head -n 5 rep-seq-raw-tax.tsv
+head -n 5 rep-seq-edit-tax.tsv
 
 ```
