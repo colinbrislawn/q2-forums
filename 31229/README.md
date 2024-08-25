@@ -47,33 +47,9 @@ cat rep-seqs-to-sorted.uc | grep "=" | wc -l
 
 ## Replicate starting from any `.fna` file
 
-Takes about a minute to run this.
-
-```sh
-sh build-HOMD-v4.sh
-
-# This script takes a fasta file and number of head lines to use
-time sh edit-import-class.sh rep-seqs.fna 400 # results change at 300
-
-# Their order the the same (good!) and their estimates are different (fine)
-head -n2 rep-seq-raw-tax.tsv
-head -n2 rep-seq-edit-tax.tsv
-
-# Different!
-cut -f2 rep-seq-raw-tax.tsv | grep "k__Bacteria\;" | wc -l # 2 lines
-cut -f2 rep-seq-edit-tax.tsv | grep "k__Bacteria\;" | wc -l # 10 lines
-
-cut -f2 rep-seq-raw-tax.tsv | grep "k__Bacteria\;"
-cut -f2 rep-seq-edit-tax.tsv | grep "k__Bacteria\;"
-
-diff --width=200 --suppress-common-lines --side-by-side <(cut -f2 rep-seq-raw-tax.tsv) <(cut -f2 rep-seq-edit-tax.tsv)
-diff --width=400 --suppress-common-lines --side-by-side <(cut -f1,2 rep-seq-raw-tax.tsv) <(cut -f1,2 rep-seq-edit-tax.tsv)
-
-
-rm rep-seq-*-tax.tsv
-```
-
 Run on full fna file from origional post.
+
+With the addition of `--p-read-orientation 'same'` the results are consistantl(ly better!)
 
 ```sh
 sh build-HOMD-v4.sh
@@ -81,7 +57,7 @@ sh build-HOMD-v4.sh
 # This script takes a fasta file and number of head lines to use
 time sh edit-import-class.sh rep-seqs.fna 999999 # results change at 300
 
-# Different!
+# now it works!
 cut -f2 rep-seq-raw-tax.tsv | grep "k__Bacteria\;" | wc -l # 2 lines
 cut -f2 rep-seq-edit-tax.tsv | grep "k__Bacteria\;" | wc -l # 313 lines
 
@@ -94,27 +70,38 @@ diff --width=400 --suppress-common-lines --side-by-side <(cut -f1,2 rep-seq-raw-
 rm rep-seq-*-tax.tsv
 ```
 
-## Reorient database
+## Check the orientation of HOMD
+
+Yes, HOMD is in the forward orientation, so `--p-read-orientation 'same'` working better makes sense.
 
 ```sh
-sh build-HOMD-v4-reorient.sh
+# Get HOMD and sintax RPD
+wget https://www.homd.org/ftp//16S_rRNA_refseq/HOMD_16S_rRNA_RefSeq/V15.23/HOMD_16S_rRNA_RefSeq_V15.23.fasta
+wget https://www.drive5.com/sintax/rdp_16s_v18.fa.gz
+gzip -d rdp_16s_v18.fa.gz
 
-# This script takes a fasta file and number of head lines to use
-time sh edit-import-class.sh rep-seqs.fna 400 # results change at 300
+vsearch \
+  --orient HOMD_16S_rRNA_RefSeq_V15.23.fasta \
+  --db rdp_16s_v18.fa \
+  --fastaout HOMD_16S_rRNA_RefSeq_V15.23-orient.fasta
 
-# Their order the the same (good!) and their estimates are different (fine)
-head -n2 rep-seq-raw-tax.tsv
-head -n2 rep-seq-edit-tax.tsv
+# vsearch v2.22.1_linux_x86_64, 15.4GB RAM, 16 cores
+# https://github.com/torognes/vsearch
 
-# Different!
-cut -f2 rep-seq-raw-tax.tsv | grep "k__Bacteria\;" | wc -l # 2 lines
-cut -f2 rep-seq-edit-tax.tsv | grep "k__Bacteria\;" | wc -l # 10 lines
+# Reading file rdp_16s_v18.fa 100%  
+# WARNING: 8 invalid characters stripped from FASTA file: I(2) L(5) O(1)
+# REMINDER: vsearch does not support amino acid sequences
+# 30743098 nt in 21195 seqs, min 455, max 1968, avg 1450
+# Masking 100% 
+# Counting k-mers 100% 
+# Creating k-mer index 100% 
+# Orienting sequences 100%  
+# Forward oriented sequences: 1015 (100.00%)
+# Reverse oriented sequences: 0 (0.00%)
+# All oriented sequences:     1015 (100.00%)
+# Not oriented sequences:     0 (0.00%)
+# Total number of sequences:  1015
 
-cut -f2 rep-seq-raw-tax.tsv | grep "k__Bacteria\;"
-cut -f2 rep-seq-edit-tax.tsv | grep "k__Bacteria\;"
-
-diff --width=200 --suppress-common-lines --side-by-side <(cut -f2 rep-seq-raw-tax.tsv) <(cut -f2 rep-seq-edit-tax.tsv)
-diff --width=400 --suppress-common-lines --side-by-side <(cut -f1,2 rep-seq-raw-tax.tsv) <(cut -f1,2 rep-seq-edit-tax.tsv)
-
-rm rep-seq-*-tax.tsv
+rm HOMD*
+rm rdp*
 ```
