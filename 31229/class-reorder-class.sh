@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. ~/Q2/q2-2024.source
+# . ~/Q2/q2-2024.source
 
 qiime feature-classifier classify-sklearn \
       --i-classifier homd-15.23-515-806-nb-q2-2024.5.qza \
