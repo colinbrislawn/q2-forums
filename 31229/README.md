@@ -45,7 +45,7 @@ cat rep-seqs-to-sorted.uc | wc -l
 cat rep-seqs-to-sorted.uc | grep "=" | wc -l
 ```
 
-## Does subsettings change results?
+## Replicate starting from `rep-seq.fna` file
 
 ```sh
 sh build-HOMD-v4.sh
