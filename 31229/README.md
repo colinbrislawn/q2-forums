@@ -45,16 +45,57 @@ cat rep-seqs-to-sorted.uc | wc -l
 cat rep-seqs-to-sorted.uc | grep "=" | wc -l
 ```
 
-## Replicate starting from `rep-seq.fna` file
+## Replicate starting from any `.fna` file
+
+Takes about a minute to run this.
 
 ```sh
 sh build-HOMD-v4.sh
-sh edit-import-class.sh
 
-cmp rep-seq-raw-tax.tsv rep-seq-edit-tax.tsv && echo '## Identical!' || echo '##Diferent!'
+# This script takes a fasta file and number of head lines to use
+time sh edit-import-class.sh rep-seqs.fna 400 # results change at 300
 
-cat rep-seq-raw-tax.tsv
-cat rep-seq-edit-tax.tsv
+# Their order the the same (good!) and their estimates are different (fine)
+head -n2 rep-seq-raw-tax.tsv
+head -n2 rep-seq-edit-tax.tsv
+
+# Different!
+cut -f2 rep-seq-raw-tax.tsv | grep "k__Bacteria\;" | wc -l # 2 lines
+cut -f2 rep-seq-edit-tax.tsv | grep "k__Bacteria\;" | wc -l # 10 lines
+
+cut -f2 rep-seq-raw-tax.tsv | grep "k__Bacteria\;"
+cut -f2 rep-seq-edit-tax.tsv | grep "k__Bacteria\;"
+
+diff --width=200 --suppress-common-lines --side-by-side <(cut -f2 rep-seq-raw-tax.tsv) <(cut -f2 rep-seq-edit-tax.tsv)
+diff --width=400 --suppress-common-lines --side-by-side <(cut -f1,2 rep-seq-raw-tax.tsv) <(cut -f1,2 rep-seq-edit-tax.tsv)
+
+
+rm rep-seq-*-tax.tsv
+```
+
+Try this on an existing public data set: PR2 18S
+
+```sh
+wget https://raw.githubusercontent.com/torognes/vsearch-data/master/PR2-18S-rRNA-V4.derep.fsa
+
+sh build-HOMD-v4.sh
+
+# This script takes a fasta file and number of head lines to use
+time sh edit-import-class.sh PR2-18S-rRNA-V4.derep.fsa 9999999 # Small change at 34999
+
+# Their order the the same (good!) and their estimates are different (fine)
+head -n2 rep-seq-raw-tax.tsv
+head -n2 rep-seq-edit-tax.tsv
+
+# Different!
+cut -f2 rep-seq-raw-tax.tsv | grep "k__Bacteria\;" | wc -l # 51 lines
+cut -f2 rep-seq-edit-tax.tsv | grep "k__Bacteria\;" | wc -l # 30 lines
+
+cut -f2 rep-seq-raw-tax.tsv | grep "k__Bacteria\;"
+cut -f2 rep-seq-edit-tax.tsv | grep "k__Bacteria\;"
+
+diff --width=$COLUMNS --suppress-common-lines --side-by-side <(cut -f2 rep-seq-raw-tax.tsv) <(cut -f2 rep-seq-edit-tax.tsv)
+diff --width=$COLUMNS --suppress-common-lines --side-by-side <(cut -f1,2 rep-seq-raw-tax.tsv) <(cut -f1,2 rep-seq-edit-tax.tsv)
 
 rm rep-seq-*-tax.tsv
 ```

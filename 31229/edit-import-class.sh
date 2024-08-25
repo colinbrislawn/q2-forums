@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Starting from .fna file, go directly to skl
-cat rep-seqs.fna | \
-  head -n 20 > rep-seqs-raw.fna
+cat $1 | \
+  head -n $2 > rep-seqs-raw.fna
 
 qiime tools import \
       --type 'FeatureData[Sequence]' \
@@ -28,8 +28,8 @@ rm -rf rep-seq-raw-tax
 
 # Starting from .fna file, change it before skl
 
-cat rep-seqs.fna | \
-  head -n 20 | \
+cat $1 | \
+  head -n $2 | \
   awk '(NR%2 == 1) { meta=$0; } (NR%2 == 0) { print meta"\t"$0; }' | \
   sort | \
   tr "\t" "\n" > rep-seqs-edit.fna
