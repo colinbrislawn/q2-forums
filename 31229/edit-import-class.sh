@@ -13,6 +13,7 @@ rm rep-seqs-raw.fna
 qiime feature-classifier classify-sklearn \
       --i-classifier homd-15.23-515-806-nb-q2-2024.5.qza \
       --p-n-jobs 1 \
+      --p-read-orientation 'same' \
       --i-reads rep-seq-raw.qza \
       --o-classification rep-seq-raw-tax.qza
 rm rep-seq-raw.qza
@@ -43,6 +44,7 @@ rm rep-seqs-edit.fna
 qiime feature-classifier classify-sklearn \
       --i-classifier homd-15.23-515-806-nb-q2-2024.5.qza \
       --p-n-jobs 1 \
+      --p-read-orientation 'same' \
       --i-reads rep-seqs-edit.qza \
       --o-classification rep-seqs-edit-tax.qza
 rm rep-seqs-edit.qza
