@@ -54,4 +54,5 @@ sh edit-import-class.sh
 head -n 5 rep-seq-raw-tax.tsv
 head -n 5 rep-seq-edit-tax.tsv
 
+rm rep-seq-*-tax.tsv
 ```
