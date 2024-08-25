@@ -51,8 +51,10 @@ cat rep-seqs-to-sorted.uc | grep "=" | wc -l
 sh build-HOMD-v4.sh
 sh edit-import-class.sh
 
-head -n 5 rep-seq-raw-tax.tsv
-head -n 5 rep-seq-edit-tax.tsv
+cmp rep-seq-raw-tax.tsv rep-seq-edit-tax.tsv && echo '## Identical!' || echo '##Diferent!'
+
+cat rep-seq-raw-tax.tsv
+cat rep-seq-edit-tax.tsv
 
 rm rep-seq-*-tax.tsv
 ```

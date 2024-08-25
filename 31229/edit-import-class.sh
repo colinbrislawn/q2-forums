@@ -1,18 +1,21 @@
 #!/bin/bash
 
 # Starting from .fna file, go directly to skl
-cat rep-seq.fna > rep-seqs-raw.fna
+cat rep-seqs.fna | \
+  head -n 20 > rep-seqs-raw.fna
 
 qiime tools import \
       --type 'FeatureData[Sequence]' \
       --input-path rep-seqs-raw.fna \
       --output-path rep-seq-raw.qza
+rm rep-seqs-raw.fna
 
 qiime feature-classifier classify-sklearn \
       --i-classifier homd-15.23-515-806-nb-q2-2024.5.qza \
       --p-n-jobs 1 \
       --i-reads rep-seq-raw.qza \
       --o-classification rep-seq-raw-tax.qza
+rm rep-seq-raw.qza
 
 qiime tools export \
       --input-path rep-seq-raw-tax.qza \
@@ -26,6 +29,7 @@ rm -rf rep-seq-raw-tax
 # Starting from .fna file, change it before skl
 
 cat rep-seqs.fna | \
+  head -n 20 | \
   awk '(NR%2 == 1) { meta=$0; } (NR%2 == 0) { print meta"\t"$0; }' | \
   sort | \
   tr "\t" "\n" > rep-seqs-edit.fna
