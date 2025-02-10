@@ -20,7 +20,6 @@ data(enterotype)
 # data(soilrep)
 
 ps <- GlobalPatterns
-
 ```
 
 ## Goal
@@ -49,6 +48,5 @@ ps.melt %>%
   ggplot(aes(x = SampleType, y = nFeatures)) +
   scale_y_log10() +
   geom_boxplot()
-
 ```
 
