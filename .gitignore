@@ -2,6 +2,7 @@
 *_cache
 *_files
 .Rhistory
+.RData
 
 # lol, don't store ANY data
 *.qza

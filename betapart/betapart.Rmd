@@ -9,17 +9,17 @@ output:
 
 ```{r setup0, include=T}
 library("tidyverse")
-library("kableExtra")
+library("DT")
 
-# library("vegan")
+library("vegan")
 library("betapart")
 
-knitr::opts_chunk$set(echo = TRUE, cache = FALSE)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
 
 theme_set(theme_bw())
 theme_update(
-  strip.background = element_blank(),
-  axis.text.x = element_text(angle = -20, hjust = 0)
+  strip.background = element_blank()
+  # axis.text.x = element_text(angle = -20, hjust = 0)
 )
 ```
 
@@ -37,94 +37,144 @@ lintr::lint("betapart.Rmd",
 )
 ```
 
-## Import directly from `taxa_barplot.qzv`
+```{r betapart}
+# Feature table binary
+ftab_b <- read_tsv("feature_table_binary.tsv", skip = 1, col_names = T) |>
+  column_to_rownames(var = "#OTU ID") |>
+  t()
+# Transpose because taxa_are_rows in Qiime2 and betapart wants a
+# "data frame, where rows are sites and columns are species"
 
-This example data is the output of running `qiime taxa barplot` from the
-[pd-mice tutorial](https://docs.qiime2.org/2024.5/tutorials/pd-mice/#taxonomy-barchart).
-
-```{r functions}
-import_taxa_barplot <- function(qvz.path) {
-  csv.name <- unzip(qvz.path, list = TRUE, exdir = tempdir()) |>
-    filter(str_detect(.data$Name, "level-7.csv"))
-
-  # Note that this long format perserves zeros from the matrix
-  return(
-    unzip(qvz.path, files = csv.name$Name, exdir = tempdir()) |>
-      read_csv() |>
-      pivot_longer(
-        cols = starts_with("k__"), names_to = "tax", values_to = "count"
-      ) |>
-      select(-starts_with("Unassigned"))
-  )
-}
+ftab_b_bp <- beta.pair(ftab_b, index.family = "jaccard")
+ftab_b_bp |> glimpse()
 ```
 
-```{r }
-# Import file
-taxa_barplot <- paste0(
-  # "path/if/needed/",
-  "taxa_barplot.qzv"
-) |>
-  import_taxa_barplot() |>
-  # Databases levels vary, so we can adjust that here
-  separate(
-    tax,
-    c("Kingdon", "Phylum", "Class", "Order", "Family", "Genus", "Species"),
-    sep = ";",
-    remove = FALSE
-  )
+```{r testdist}
+if (
+  any(is.na(ftab_b_bp$beta.jac))
+) {
+  stop("NAs in the matrix")
+}
+if (
+  any(ftab_b_bp$beta.jac < 0)
+) {
+  stop("Negative distances produced!")
+}
 
-# Roll up to higher tax level
-taxa_barplot_Phylum <- taxa_barplot |>
-  # There are no zeros in boxplots
-  filter(count > 0) |>
-  # Optionally remove unclassified taxa
-  filter(!(Phylum %in% c("__", "p__"))) |>
-  group_by(
-    index,
-    # Add your sample metadata here, like
-    mouse_id = factor(mouse_id), genotype, cage_id, donor, donor_status, days_post_transplant,
-    Phylum
+# Check nestedness
+dist_matrix <- as.matrix(ftab_b_bp$beta.jne) # Convert to a regular matrix
+
+if (any(is.na(dist_matrix))) stop("NAs in the matrix")
+if (any(dist_matrix < 0)) stop("Negative distances produced!")
+
+# 1. Ensure Symmetry
+if (!isSymmetric(dist_matrix)) stop("Not symmetric")
+
+# 2. Ensure Diagonal is Zero
+if (any(diag(dist_matrix) != 0)) stop("The diagonal is NOT all zeros!\n")
+
+# 3. Triangle Inequality (Most computationally intensive)
+triangle_check <- function(dist_matrix) {
+  n <- nrow(dist_matrix)
+  for (i in 1:n) {
+    for (j in 1:n) {
+      for (k in 1:n) {
+        if (dist_matrix[i, j] + dist_matrix[j, k] >= dist_matrix[i, k]) {
+          # All good!
+        } else { # Violation
+          cat("Triangle inequality violated at: [", i, ", ", j, ", ", k, "]\n", sep = "")
+          cat(dist_matrix[i, j], " + ", dist_matrix[j, k], " <= ", dist_matrix[i, k], "\n", sep = "")
+          cat(dist_matrix[i, j] + dist_matrix[j, k], " <= ", dist_matrix[i, k], "\n", sep = "")
+          return(FALSE) # Stop at the first violation
+        }
+      }
+    }
+  }
+  return(TRUE) # No violations found
+}
+# ftab_b_bp$beta.jac |> as.matrix() |> triangle_check() # passes!
+ftab_b_bp$beta.jne |>
+  as.matrix() |>
+  triangle_check()
+ftab_b_bp$beta.jtu |>
+  as.matrix() |>
+  triangle_check()
+```
+
+Let's use the `vegan::adonis` test to see how much variation of nestedness and
+turnover can be attributed to a metadata variable.
+
+Note that while Jaccard distances of nestedness and turnover add up to
+total Jaccard distance, these R2 values will not sum up.
+
+Rather, this qualitative measurement shows what correlates best.
+
+```{r adonis2}
+meta_all <- read_tsv("sample-metadata.tsv", comment = "#")
+
+# Filter to keep samples that are in our feature table
+meta <- meta_all |> filter(SampleID %in% rownames(ftab_b))
+meta |> glimpse()
+
+adonis2_on_bplist <- function(formula_rhs, meta, bp_list) {
+  rbind(
+    adonis2(
+      as.formula(paste("bp_list$beta.jac ~", formula_rhs)),
+      data = meta, permutations = 999
+    ) |>
+    rownames_to_column() |>
+    tibble(test = formula_rhs, dist = "Jaccard Total")
+    # Can use these with ADONIS2 because they are not true distances. They don't satisfy the triangle inequality.
+    # adonis2(as.formula(paste("bp_list$beta.jtu ~", formula_rhs)),
+    #   data = meta, permutations = 999
+    #   ) |> rownames_to_column() |> tibble(test = formula_rhs, dist = "Jaccard Turnover"),
+    # adonis2(as.formula(paste("bp_list$beta.jne ~", formula_rhs)),
+    #   data = meta, permutations = 999
+    #   ) |> rownames_to_column() |> tibble(test = formula_rhs, dist = "Jaccard Nestedness")
   ) |>
-  summarize(count = sum(count))
+    filter(rowname == "Model") |>
+    select(-rowname) |>
+    relocate(test, dist)
+}
 
-# view blocked study design
-taxa_barplot_Phylum |>
-  ungroup() |>
-  select(
-    genotype, donor_status
-  ) |>
-  table()
+# Example Usage
+ftab_b_bp_adonis <- rbind(
+  adonis2_on_bplist("PatientID", meta, ftab_b_bp),
+  adonis2_on_bplist("Disease", meta, ftab_b_bp),
+  adonis2_on_bplist("Timepoint", meta, ftab_b_bp),
+  adonis2_on_bplist("Disease + Timepoint", meta, ftab_b_bp),
+  adonis2_on_bplist("Timepoint + Disease", meta, ftab_b_bp),
+  adonis2_on_bplist("autoFmtGroup", meta, ftab_b_bp)
+)
+```
 
-# Convert to percent
-taxa_barplot_Phylum_percent <- taxa_barplot_Phylum |>
-  ungroup(Phylum) |>
-  mutate(Percent = 100 * count / sum(count))
+```{r adonis2plots}
+ftab_b_bp_adonis |> datatable(rownames = FALSE)
 
-# What's big?
-# taxa_barplot_Phylum_percent |>
-#   group_by(Phylum) |>
-#   summarize(sum = sum(Percent) / n()) |>
-#   arrange(-sum) |>
-#   kable()
+ftab_b_bp_adonis |> ggplot(aes(x = test, y = R2)) +
+  geom_col(position = "dodge") +
+  coord_flip() +
+  labs(
+    # title = "Variance Explained by metadata variables",
+    y = "ADONIS R² value (fraction of variation explained)")
 
-# And finally, ggplot() + geom_bar()
-taxa_barplot_Phylum_percent |>
-  filter(Percent > 1) |>
-  ggplot(aes(x = index, y = Percent, fill = Phylum)) +
-  geom_bar(stat = "identity", position = "stack") +
-  facet_grid(~ genotype + donor, space = "free", scales = "free") +
-  scale_fill_brewer(palette = "Spectral") +
-  theme(
-    axis.text.x = element_blank(),
-    axis.title.x = element_blank()
-  )
 
-# map(c("Figures/Fig-ra-barplot.tiff", "Figures/Fig-ra-barplot.eps"),
-#   ~ggsave(.x, width = 5, height = 3, units = "in", scale = 1.3))
-# ggsave("Fig-ra-barplot.png", width = 5, height = 3, units = "in", scale = 1.3)
 ```
 
 ```{r, include=F, eval=F}
-rmarkdown::render("ra-boxplot.Rmd")
+rmarkdown::render("betapart.Rmd")
+# To clear cache
+unlink("betapart_cache/")
+```
+
+```{r distmelt, eval = F, include = F}
+distmelt <- function(d) {
+  d.melt <- d %>%
+    as.matrix() %>%
+    as.data.frame() %>%
+    tibble::rownames_to_column() %>%
+    melt()
+  d.melt$variable <- as.character(d.melt$variable)
+  return(d.melt[d.melt$variable > d.melt$rowname, ])
+}
 ```
