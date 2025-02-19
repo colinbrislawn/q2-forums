@@ -13,6 +13,7 @@ library("DT")
 
 library("vegan")
 library("betapart")
+library("broom")
 
 knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
 
@@ -37,6 +38,8 @@ lintr::lint("betapart.Rmd",
 )
 ```
 
+## Import
+
 ```{r betapart}
 # Feature table binary
 ftab_b <- read_tsv("feature_table_binary.tsv", skip = 1, col_names = T) |>
@@ -49,7 +52,78 @@ ftab_b_bp <- beta.pair(ftab_b, index.family = "jaccard")
 ftab_b_bp |> glimpse()
 ```
 
-```{r testdist}
+## Matrix to tibble
+
+```{r distmelt, eval = F, include = F}
+bp_tidy <- function(bp_list) {
+  a <- bp_list$beta.jac |> tidy(diagonal = T, upper = T) |> mutate(Jaccard = distance, distance = NULL)
+  b <- bp_list$beta.jne |> tidy(diagonal = T, upper = T) |> mutate(Nestedness = distance, distance = NULL)
+  c <- bp_list$beta.jtu |> tidy(diagonal = T, upper = T) |> mutate(Turnover = distance, distance = NULL)
+
+  a |>
+    left_join(b, by = join_by(item1, item2)) |>
+    left_join(c, by = join_by(item1, item2)) |>
+    mutate(
+      item1 = as.character(item1),
+      item2 = as.character(item2)
+    )
+}
+
+ftab_b_bpt <- ftab_b_bp |> bp_tidy()
+ftab_b_bpt |> head()
+```
+
+## Merge in meta
+
+Because our distances are now in a list, we have to track metadata for _pairs_ of samples, which is tricky!
+
+```{r}
+meta_all <- read_tsv("sample-metadata.tsv", comment = "#")
+
+# Filter to keep samples that are in our feature table
+meta <- meta_all |> filter(SampleID %in% rownames(ftab_b))
+# meta |> glimpse()
+
+ftab_b_bpt_autoFmtGroup <- ftab_b_bpt |>
+  left_join(
+    meta |> mutate(item1 = SampleID, autoFmtGroup1 = autoFmtGroup, .keep = "none")
+  ) |>
+  left_join(
+    meta |> mutate(item2 = SampleID, autoFmtGroup2 = autoFmtGroup, .keep = "none")
+  ) |>
+  # arrange(autoFmtGroup1, item1) |>
+  arrange(autoFmtGroup1, item1, autoFmtGroup2, item2) |> # Sort the data
+  mutate(
+    autoFmtGroup1 = fct_rev(autoFmtGroup1),          # Reverse facet order
+    item1 = fct_inorder(item1),                   # Use current order as factor levels for item1
+    item2 = fct_inorder(item2)                     # Use current order as factor levels for item2
+  )
+
+  # mutate(
+  #   autoFmtGroup1 = fct_rev(autoFmtGroup1),
+  #   item1 = fct_reorder(item1, autoFmtGroup1),
+  #   item2 = fct_reorder(item2, autoFmtGroup2)
+  #   )
+
+ftab_b_bpt_autoFmtGroup |>
+  ggplot(aes(item1, item2, fill = Jaccard)) +
+  geom_raster() +
+  facet_grid(autoFmtGroup1~autoFmtGroup2, space = "free", scales = "free")
+```
+
+
+
+```{r, include=F, eval=F}
+rmarkdown::render("betapart.Rmd")
+# To clear cache
+unlink("betapart_cache/")
+```
+
+## Unused
+
+### Test for triangle inequality to confirm true distances
+
+```{r testdist, include=F, eval=F}
 if (
   any(is.na(ftab_b_bp$beta.jac))
 ) {
@@ -100,6 +174,8 @@ ftab_b_bp$beta.jtu |>
   as.matrix() |>
   triangle_check()
 ```
+
+### Adonis test
 
 Let's use the `vegan::adonis` test to see how much variation of nestedness and
 turnover can be attributed to a metadata variable.
@@ -158,23 +234,4 @@ ftab_b_bp_adonis |> ggplot(aes(x = test, y = R2)) +
     # title = "Variance Explained by metadata variables",
     y = "ADONIS R² value (fraction of variation explained)")
 
-
-```
-
-```{r, include=F, eval=F}
-rmarkdown::render("betapart.Rmd")
-# To clear cache
-unlink("betapart_cache/")
-```
-
-```{r distmelt, eval = F, include = F}
-distmelt <- function(d) {
-  d.melt <- d %>%
-    as.matrix() %>%
-    as.data.frame() %>%
-    tibble::rownames_to_column() %>%
-    melt()
-  d.melt$variable <- as.character(d.melt$variable)
-  return(d.melt[d.melt$variable > d.melt$rowname, ])
-}
 ```
