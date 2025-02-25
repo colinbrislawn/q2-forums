@@ -21,12 +21,12 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
 
 theme_set(theme_bw())
 theme_update(
-  strip.background = element_blank()
-  # axis.text.x = element_text(angle = -20, hjust = 0)
+  strip.background = element_blank(),
+  axis.text.x = element_text(angle = -20, hjust = 0)
 )
 ```
 
-```{r lint, include=F, eval=T}
+```{r lint, include=F, eval=F}
 library(styler)
 style_dir(strict = TRUE)
 
@@ -40,7 +40,7 @@ lintr::lint("betapart.Rmd",
 )
 ```
 
-## Import
+## Import binary feature table
 
 ```{r betapart}
 # Feature table binary
@@ -50,17 +50,28 @@ ftab_b <- read_tsv("feature_table_binary.tsv", skip = 1, col_names = T) |>
 # Transpose because taxa_are_rows in Qiime2 and betapart wants a
 # "data frame, where rows are sites and columns are species"
 
+stopifnot(
+  "values greater than 1 detected. This table must be binary!" = max(ftab_b) == 1
+  # There's more to check, but this would catch if the user forgot to normalize
+)
+
 ftab_b_bp <- beta.pair(ftab_b, index.family = "jaccard")
 ftab_b_bp |> glimpse()
 ```
 
 ## Matrix to tibble
 
-```{r distmelt, eval = F, include = F}
+```{r bp_tidy}
 bp_tidy <- function(bp_list) {
-  a <- bp_list$beta.jac |> tidy(diagonal = F, upper = F) |> mutate(Jaccard = distance, distance = NULL)
-  b <- bp_list$beta.jne |> tidy(diagonal = F, upper = F) |> mutate(Nestedness = distance, distance = NULL)
-  c <- bp_list$beta.jtu |> tidy(diagonal = F, upper = F) |> mutate(Turnover = distance, distance = NULL)
+  a <- bp_list$beta.jac |>
+    tidy(diagonal = F, upper = F) |>
+    mutate(Jaccard = distance, distance = NULL)
+  b <- bp_list$beta.jne |>
+    tidy(diagonal = F, upper = F) |>
+    mutate(Nestedness = distance, distance = NULL)
+  c <- bp_list$beta.jtu |>
+    tidy(diagonal = F, upper = F) |>
+    mutate(Turnover = distance, distance = NULL)
 
   a |>
     left_join(b, by = join_by(item1, item2)) |>
@@ -85,49 +96,87 @@ meta_all <- read_tsv("sample-metadata.tsv", comment = "#")
 # Filter to keep samples that are in our feature table
 meta <- meta_all |> filter(SampleID %in% rownames(ftab_b))
 # meta |> glimpse()
-
 ```
 
 ```{r bp_dispersion}
-pairwise_comparisons <- function(meta, ftab, group_col) {
+summarize_within_group <- function(meta, bp_tidy, group_col) {
   meta |>
     inner_join(meta, by = group_col, relationship = "many-to-many") |>
     mutate(item1 = SampleID.x, item2 = SampleID.y) |>
-    select(item1, item2, {{group_col}}) |>
+    select(item1, item2, {{ group_col }}) |>
     filter(item1 != item2) |>
-    inner_join(ftab, by = join_by(item1, item2))
+    inner_join(bp_tidy, by = join_by(item1, item2))
 }
 ```
 
-```{r bp_dispersion_plot}
+```{r bp_dispersion_plot_sample}
 meta |>
-  pairwise_comparisons(ftab_b_bpt, "autoFmtGroup") |>
-  # pivot_longer(c(Nestedness, Turnover), names_to = "Parts", values_to = "value") |>
+  summarize_within_group(ftab_b_bpt, "autoFmtGroup") |>
   pivot_longer(c(Jaccard, Nestedness, Turnover), names_to = "Part", values_to = "value") |>
-  ggboxplot( "autoFmtGroup", "value", color = "Part") +
-  labs(y = "Pairwise distance to all \nother samples within this group") +
-  facet_grid(~Part, space = "free", scales = "free") +
-  stat_compare_means(method = "t.test")
-
-meta |>
-  pairwise_comparisons(ftab_b_bpt, "autoFmtGroup") |>
-  # pivot_longer(c(Nestedness, Turnover), names_to = "Parts", values_to = "value") |>
-  pivot_longer(c(Jaccard, Nestedness, Turnover), names_to = "Part", values_to = "value") |>
-  # filter(Part == "Jaccard") |>
   ggboxplot("item1", "value", color = "Part") +
-  labs(x = "Sample", y = "Pairwise distance to all \nother samples within this group") +
+  labs(
+    title = "Per-sample Jaccard, split by nestedness and turnover",
+    x = "Sample",
+    y = "Pairwise distance to all \nother samples within this group"
+  ) +
   theme(axis.text.x = element_blank()) +
-  facet_grid(Part~autoFmtGroup, space = "free", scales = "free")
+  facet_grid(Part ~ autoFmtGroup, space = "free", scales = "free")
+```
+
+```{r bp_dispersion_plot_groups, fig.height = 4, fig.width = 9}
+meta |>
+  summarize_within_group(ftab_b_bpt, "autoFmtGroup") |>
+  pivot_longer(c(Jaccard, Nestedness, Turnover), names_to = "Part", values_to = "value") |>
+  ggboxplot(
+    "autoFmtGroup", "value",
+    color = "Part",
+    ylim = c(0, 1.14),
+    yticks.by = 0.2,
+    ggtheme = theme_pubclean()
+  ) +
+  facet_grid(~Part, space = "free", scales = "free") +
+  stat_compare_means(method = "t.test") +
+  theme(
+    strip.background = element_blank()
+  )
 
 meta |>
-  pairwise_comparisons(ftab_b_bpt, "autoFmtGroup") |>
+  summarize_within_group(ftab_b_bpt, "Disease") |>
+  pivot_longer(c(Jaccard, Nestedness, Turnover), names_to = "Part", values_to = "value") |>
+  ggboxplot(
+    "Disease", "value",
+    color = "Part",
+    ylab = "Pairwise distance to all other \nsamples within this group",
+    ylim = c(0, 1.14),
+    yticks.by = 0.2,
+    ggtheme = theme_pubclean()
+  ) +
+  facet_grid(~Part, space = "free", scales = "free") +
+  stat_compare_means() +
+  theme(
+    strip.background = element_blank(),
+    axis.text.x = element_text(angle = 20, hjust = 1)
+  )
+
+```
+
+```{r bp_dispersion_plot_stacked, include = F, eval = F}
+meta |>
+  summarize_within_group(ftab_b_bpt, "autoFmtGroup") |>
+  pivot_longer(c(Nestedness, Turnover), names_to = "Parts", values_to = "value") |>
+  head()
+# see, we can stack these two to get total Jaccard!
+```
+
+```{r bp_dispersion_plot_grid}
+meta |>
+  summarize_within_group(ftab_b_bpt, "autoFmtGroup") |>
   # pivot_longer(c(Nestedness, Turnover), names_to = "Parts", values_to = "value") |>
   pivot_longer(c(Jaccard, Nestedness, Turnover), names_to = "Part", values_to = "value") |>
   filter(Part == "Jaccard") |>
   ggplot(aes(x = item1, y = value, fill = Part)) +
   facet_grid(~autoFmtGroup, space = "free", scales = "free") +
   geom_bar(stat = "identity")
-
 ```
 
 ```{r, include=F, eval=F}
@@ -149,21 +198,21 @@ ftab_b_bpt_autoFmtGroup <- ftab_b_bpt |>
   # arrange(autoFmtGroup1, item1) |>
   arrange(autoFmtGroup1, item1, autoFmtGroup2, item2) |> # Sort the data
   mutate(
-    autoFmtGroup1 = fct_rev(autoFmtGroup1),          # Reverse facet order
-    item1 = fct_inorder(item1),                   # Use current order as factor levels for item1
-    item2 = fct_inorder(item2)                     # Use current order as factor levels for item2
+    autoFmtGroup1 = fct_rev(autoFmtGroup1), # Reverse facet order
+    item1 = fct_inorder(item1), # Use current order as factor levels for item1
+    item2 = fct_inorder(item2) # Use current order as factor levels for item2
   )
 
-  # mutate(
-  #   autoFmtGroup1 = fct_rev(autoFmtGroup1),
-  #   item1 = fct_reorder(item1, autoFmtGroup1),
-  #   item2 = fct_reorder(item2, autoFmtGroup2)
-  #   )
+# mutate(
+#   autoFmtGroup1 = fct_rev(autoFmtGroup1),
+#   item1 = fct_reorder(item1, autoFmtGroup1),
+#   item2 = fct_reorder(item2, autoFmtGroup2)
+#   )
 
 ftab_b_bpt_autoFmtGroup |>
   ggplot(aes(item1, item2, fill = Jaccard)) +
   geom_raster() +
-  facet_grid(autoFmtGroup1~autoFmtGroup2, space = "free", scales = "free")
+  facet_grid(autoFmtGroup1 ~ autoFmtGroup2, space = "free", scales = "free")
 ```
 
 
@@ -246,8 +295,8 @@ adonis2_on_bplist <- function(formula_rhs, meta, bp_list) {
       as.formula(paste("bp_list$beta.jac ~", formula_rhs)),
       data = meta, permutations = 999
     ) |>
-    rownames_to_column() |>
-    tibble(test = formula_rhs, dist = "Jaccard Total")
+      rownames_to_column() |>
+      tibble(test = formula_rhs, dist = "Jaccard Total")
     # Can use these with ADONIS2 because they are not true distances. They don't satisfy the triangle inequality.
     # adonis2(as.formula(paste("bp_list$beta.jtu ~", formula_rhs)),
     #   data = meta, permutations = 999
@@ -280,6 +329,6 @@ ftab_b_bp_adonis |> ggplot(aes(x = test, y = R2)) +
   coord_flip() +
   labs(
     # title = "Variance Explained by metadata variables",
-    y = "ADONIS R² value (fraction of variation explained)")
-
+    y = "ADONIS R² value (fraction of variation explained)"
+  )
 ```
