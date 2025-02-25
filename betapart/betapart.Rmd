@@ -15,6 +15,8 @@ library("vegan")
 library("betapart")
 library("broom")
 
+library("ggpubr")
+
 knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
 
 theme_set(theme_bw())
@@ -56,9 +58,9 @@ ftab_b_bp |> glimpse()
 
 ```{r distmelt, eval = F, include = F}
 bp_tidy <- function(bp_list) {
-  a <- bp_list$beta.jac |> tidy(diagonal = T, upper = T) |> mutate(Jaccard = distance, distance = NULL)
-  b <- bp_list$beta.jne |> tidy(diagonal = T, upper = T) |> mutate(Nestedness = distance, distance = NULL)
-  c <- bp_list$beta.jtu |> tidy(diagonal = T, upper = T) |> mutate(Turnover = distance, distance = NULL)
+  a <- bp_list$beta.jac |> tidy(diagonal = F, upper = F) |> mutate(Jaccard = distance, distance = NULL)
+  b <- bp_list$beta.jne |> tidy(diagonal = F, upper = F) |> mutate(Nestedness = distance, distance = NULL)
+  c <- bp_list$beta.jtu |> tidy(diagonal = F, upper = F) |> mutate(Turnover = distance, distance = NULL)
 
   a |>
     left_join(b, by = join_by(item1, item2)) |>
@@ -77,13 +79,83 @@ ftab_b_bpt |> head()
 
 Because our distances are now in a list, we have to track metadata for _pairs_ of samples, which is tricky!
 
-```{r}
+```{r meta}
 meta_all <- read_tsv("sample-metadata.tsv", comment = "#")
 
 # Filter to keep samples that are in our feature table
 meta <- meta_all |> filter(SampleID %in% rownames(ftab_b))
 # meta |> glimpse()
 
+```
+
+```{r bp_dispersion}
+# ftab_b_bpt_autoFmtGroup <-
+
+ftab_b_bpt |>
+  left_join(
+    meta |> mutate(item1 = SampleID, autoFmtGroup1 = autoFmtGroup, .keep = "none")
+  ) |>
+  left_join(
+    meta |> mutate(item2 = SampleID, autoFmtGroup2 = autoFmtGroup, .keep = "none")
+  ) |>
+  # within group only
+  filter(autoFmtGroup1 == autoFmtGroup2) |>
+  glimpse() # 7535
+
+# Backwards, starting from metadata -> all pairs -> just pairs within the group
+meta_bp_autoFmtGroup <- meta |> 
+  inner_join(meta, by = "autoFmtGroup", relationship = "many-to-many") |> 
+  mutate(item1 = SampleID.x, item2 = SampleID.y, autoFmtGroup, .keep = "none") |>
+  filter(item1 != item2) |>
+  # we avoid double counting by using only matching distances from this object
+  inner_join(ftab_b_bpt)
+```
+
+```{r bp_dispersion_plot}
+meta_bp_autoFmtGroup |>
+  # pivot_longer(c(Nestedness, Turnover), names_to = "Parts", values_to = "value") |>
+  pivot_longer(c(Jaccard, Nestedness, Turnover), names_to = "Part", values_to = "value") |>
+  ggboxplot( "autoFmtGroup", "value", color = "Part") +
+  labs(y = "Pairwise distance to all \nother samples within this group") +
+  facet_grid(~Part, space = "free", scales = "free") +
+  stat_compare_means(method = "t.test")
+
+meta_bp_autoFmtGroup |>
+  # pivot_longer(c(Nestedness, Turnover), names_to = "Parts", values_to = "value") |>
+  pivot_longer(c(Jaccard, Nestedness, Turnover), names_to = "Part", values_to = "value") |>
+  # filter(Part == "Jaccard") |>
+  ggboxplot("item1", "value", color = "Part") +
+  labs(x = "Sample", y = "Pairwise distance to all \nother samples within this group") +
+  theme(axis.text.x = element_blank()) +
+  facet_grid(Part~autoFmtGroup, space = "free", scales = "free")
+
+meta_bp_autoFmtGroup |>
+  # pivot_longer(c(Nestedness, Turnover), names_to = "Parts", values_to = "value") |>
+  pivot_longer(c(Jaccard, Nestedness, Turnover), names_to = "Part", values_to = "value") |>
+  # filter(Part == "Jaccard") |>
+  ggboxplot("item1", "value", color = "Part") +
+  facet_grid(Part~autoFmtGroup, space = "free", scales = "free")
+
+
+meta_bp_autoFmtGroup |>
+  # pivot_longer(c(Nestedness, Turnover), names_to = "Parts", values_to = "value") |>
+  pivot_longer(c(Jaccard, Nestedness, Turnover), names_to = "Part", values_to = "value") |>
+  filter(Part == "Jaccard") |>
+  ggplot(aes(x = item1, y = value, fill = Part)) +
+  facet_grid(~autoFmtGroup, space = "free", scales = "free") +
+  geom_bar(stat = "identity")
+
+```
+
+```{r, include=F, eval=F}
+rmarkdown::render("betapart.Rmd")
+# To clear cache
+unlink("betapart_cache/")
+```
+
+```{r bp_betweeness, include=F, eval=F}
+# Between groups is harder to think about and graph
+# Let's save this for later
 ftab_b_bpt_autoFmtGroup <- ftab_b_bpt |>
   left_join(
     meta |> mutate(item1 = SampleID, autoFmtGroup1 = autoFmtGroup, .keep = "none")
@@ -111,13 +183,6 @@ ftab_b_bpt_autoFmtGroup |>
   facet_grid(autoFmtGroup1~autoFmtGroup2, space = "free", scales = "free")
 ```
 
-
-
-```{r, include=F, eval=F}
-rmarkdown::render("betapart.Rmd")
-# To clear cache
-unlink("betapart_cache/")
-```
 
 ## Unused
 
