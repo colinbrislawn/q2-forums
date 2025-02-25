@@ -124,39 +124,51 @@ meta |>
 ```
 
 ```{r bp_dispersion_plot_groups, fig.height = 4, fig.width = 9}
-meta |>
-  summarize_within_group(ftab_b_bpt, "autoFmtGroup") |>
-  pivot_longer(c(Jaccard, Nestedness, Turnover), names_to = "Part", values_to = "value") |>
-  ggboxplot(
-    "autoFmtGroup", "value",
-    color = "Part",
-    ylim = c(0, 1.14),
-    yticks.by = 0.2,
-    ggtheme = theme_pubclean()
-  ) +
-  facet_grid(~Part, space = "free", scales = "free") +
-  stat_compare_means(method = "t.test") +
-  theme(
-    strip.background = element_blank()
-  )
+bp_boxplot <- function(df) {
+  group_col_name <- colnames(df)[3]
+  over_two_groups <- length(unique(df[[group_col_name]])) > 2
 
+  df |>
+    pivot_longer(c(Jaccard, Nestedness, Turnover), names_to = "Part", values_to = "value") |>
+    ggboxplot(
+      group_col_name, "value",
+      color = "Part",
+      ylab = "Pairwise distance to all other \nsamples within this group",
+      ylim = c(0, 1.14),
+      yticks.by = 0.2,
+      ggtheme = theme_pubclean()
+    ) +
+    facet_grid(~Part, space = "free", scales = "free") +
+    {
+      if (over_two_groups) {
+        suppressWarnings(stat_compare_means())
+      } else {
+        suppressWarnings(stat_compare_means(method = "t.test"))
+      }
+    } +
+    theme(
+      strip.background = element_blank(),
+      axis.text.x = if (over_two_groups) element_text(angle = 20, hjust = 1)
+    )
+}
+
+meta |> summarize_within_group(ftab_b_bpt, "autoFmtGroup") |> bp_boxplot()
+
+meta |> summarize_within_group(ftab_b_bpt, "Disease") |> bp_boxplot()
+
+meta |> summarize_within_group(ftab_b_bpt, "DayRelativeToNearestHCT") |> bp_boxplot()
+
+meta |> summarize_within_group(ftab_b_bpt, "PatientID") |> bp_boxplot()
+
+```
+
+```{r, fig.height = 8, fig.width = 8, warning=F}
 meta |>
-  summarize_within_group(ftab_b_bpt, "Disease") |>
-  pivot_longer(c(Jaccard, Nestedness, Turnover), names_to = "Part", values_to = "value") |>
-  ggboxplot(
-    "Disease", "value",
-    color = "Part",
-    ylab = "Pairwise distance to all other \nsamples within this group",
-    ylim = c(0, 1.14),
-    yticks.by = 0.2,
-    ggtheme = theme_pubclean()
-  ) +
-  facet_grid(~Part, space = "free", scales = "free") +
-  stat_compare_means() +
-  theme(
-    strip.background = element_blank(),
-    axis.text.x = element_text(angle = 20, hjust = 1)
-  )
+  mutate(Patient_Diease = paste(PatientID, Disease, sep = "_")) |>
+  summarize_within_group(ftab_b_bpt, "Patient_Diease") |>
+  separate_wider_delim(Patient_Diease, "_", names = c("Patient", "Disease")) |>
+  bp_boxplot() +
+  facet_wrap(~Disease+Part, scales = "free", ncol = 3)
 
 ```
 
@@ -168,7 +180,7 @@ meta |>
 # see, we can stack these two to get total Jaccard!
 ```
 
-```{r bp_dispersion_plot_grid}
+```{r bp_dispersion_plot_grid, include=F, eval=F}
 meta |>
   summarize_within_group(ftab_b_bpt, "autoFmtGroup") |>
   # pivot_longer(c(Nestedness, Turnover), names_to = "Parts", values_to = "value") |>
