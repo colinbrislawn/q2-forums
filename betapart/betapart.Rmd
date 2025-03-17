@@ -62,15 +62,19 @@ ftab_b_bp |> glimpse()
 ## Matrix to tibble
 
 ```{r bp_tidy}
-bp_tidy <- function(bp_list) {
+# An arguably better way to represent this in the tidyverse would be
+# to nest the three betapart values within each SampleID
+
+# Using a list of all pairs is also elegant... until we need sample metadata
+bp_tidy <- function(bp_list, upper = F) {
   a <- bp_list$beta.jac |>
-    tidy(diagonal = F, upper = F) |>
+    tidy(diagonal = F, upper = upper) |>
     mutate(Jaccard = distance, distance = NULL)
   b <- bp_list$beta.jne |>
-    tidy(diagonal = F, upper = F) |>
+    tidy(diagonal = F, upper = upper) |>
     mutate(Nestedness = distance, distance = NULL)
   c <- bp_list$beta.jtu |>
-    tidy(diagonal = F, upper = F) |>
+    tidy(diagonal = F, upper = upper) |>
     mutate(Turnover = distance, distance = NULL)
 
   a |>
@@ -82,8 +86,8 @@ bp_tidy <- function(bp_list) {
     )
 }
 
-ftab_b_bpt <- ftab_b_bp |> bp_tidy()
-ftab_b_bpt |> head()
+ftab_b_bpt <- ftab_b_bp |> bp_tidy(upper = FALSE)
+ftab_b_bpt |> tail()
 ```
 
 ## Merge in meta
@@ -98,8 +102,11 @@ meta <- meta_all |> filter(SampleID %in% rownames(ftab_b))
 # meta |> glimpse()
 ```
 
+# Within each group e.g. dispersion
+
 ```{r bp_dispersion}
 summarize_within_group <- function(meta, bp_tidy, group_col) {
+  # make meta match our pairwise list of distances
   meta |>
     inner_join(meta, by = group_col, relationship = "many-to-many") |>
     mutate(item1 = SampleID.x, item2 = SampleID.y) |>
@@ -107,6 +114,7 @@ summarize_within_group <- function(meta, bp_tidy, group_col) {
     filter(item1 != item2) |>
     inner_join(bp_tidy, by = join_by(item1, item2))
 }
+
 ```
 
 ```{r bp_dispersion_plot_sample}
@@ -160,6 +168,8 @@ meta |> summarize_within_group(ftab_b_bpt, "DayRelativeToNearestHCT") |> bp_boxp
 
 meta |> summarize_within_group(ftab_b_bpt, "PatientID") |> bp_boxplot()
 
+meta |> summarize_within_group(ftab_b_bpt, "week-relative-to-hct") |> bp_boxplot()
+
 ```
 
 ```{r, fig.height = 8, fig.width = 8, warning=F}
@@ -196,6 +206,69 @@ rmarkdown::render("betapart.Rmd")
 # To clear cache
 unlink("betapart_cache/")
 ```
+
+# VS a baseline
+
+Here we want all pairs of samples so we use the symmetrical matrix.
+
+```{r}
+# Method2: starting from distances, filter just what we want to keep
+ftab_b_bpt <- ftab_b_bp |> bp_tidy(upper = TRUE)
+ftab_b_bpt |> tail()
+
+filter_vs_baseline <- function(meta, bp_tidy, group_col, baseline_value) {
+  baseline_samples <- meta |>
+    filter(.data[[group_col]] == baseline_value) |>  # Use .data[[]]
+    pull(SampleID)
+
+  bp_tidy |>
+    filter(item1 %in% baseline_samples) |>
+    left_join(
+      meta |> select(SampleID, {{ group_col }}),
+      by = c("item2" = "SampleID")
+    ) |>
+    # rename(treatment_col = {{ group_col }}) |>
+    mutate(baseline = baseline_value)
+}
+```
+
+```{r}
+bp_boxplot2 <- function(df) {
+  group_col_name <- colnames(df)[6]
+  over_two_groups <- length(unique(df[[group_col_name]])) > 2
+  baseline_value <- df |> pull(baseline) |> unique()
+
+  df |>
+    pivot_longer(c(Jaccard, Nestedness, Turnover), names_to = "Part", values_to = "value") |>
+    ggboxplot(
+      group_col_name, "value",
+      color = "Part",
+      ylab = paste("Pairwise distance to all samples \nin", group_col_name, "==", baseline_value),
+      ylim = c(0, 1.14),
+      yticks.by = 0.2,
+      ggtheme = theme_pubclean()
+    ) +
+    facet_grid(~Part, space = "free", scales = "free") +
+    {
+      if (over_two_groups) {
+        suppressWarnings(stat_compare_means())
+      } else {
+        suppressWarnings(stat_compare_means(method = "t.test"))
+      }
+    } +
+    theme(
+      strip.background = element_blank(),
+      axis.text.x = if (over_two_groups) element_text(angle = 20, hjust = 1)
+    )
+}
+
+
+meta |> filter_vs_baseline(ftab_b_bpt, "autoFmtGroup", "control") |> bp_boxplot2()
+
+meta |> filter_vs_baseline(ftab_b_bpt, "week-relative-to-hct", 0) |> bp_boxplot2()
+
+```
+
 
 ```{r bp_betweeness, include=F, eval=F}
 # Between groups is harder to think about and graph
