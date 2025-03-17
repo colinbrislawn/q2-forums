@@ -269,6 +269,29 @@ meta |> filter_vs_baseline(ftab_b_bpt, "week-relative-to-hct", 0) |> bp_boxplot2
 
 ```
 
+```{r}
+# All in one wrapper function
+# not for reuse
+load_bp_tidy <- function(tsv){
+  # feature table binay
+  ftb <- read_tsv(tsv, skip = 1, col_names = T, show_col_types = FALSE) |>
+    column_to_rownames(var = "#OTU ID") |>
+    t()
+  # Transpose because taxa_are_rows in Qiime2 and betapart wants a
+  # "data frame, where rows are sites and columns are species"
+
+  stopifnot(
+    "values greater than 1 detected. This table must be binary!" = max(ftb) == 1
+    # There's more to check, but this would catch if the user forgot to normalize
+  )
+
+  ftb |>
+    beta.pair(index.family = "jaccard") |>
+    bp_tidy(upper = TRUE)
+}
+
+# meta |> filter_vs_baseline(load_bp_tidy("data/feature_table_binary_l4.tsv"), "Bacteria", "sans") |> bp_boxplot2()
+```
 
 ```{r bp_betweeness, include=F, eval=F}
 # Between groups is harder to think about and graph
