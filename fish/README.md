@@ -48,13 +48,22 @@ grep "TAGGTGAACCTGCGGAAGGA" ITS_OTU_tax_p__Ascomycota.fasta | wc -l
 grep -B 1 "AACCTGCGGAAGGATCATTA" ITS_OTU_tax_p__Ascomycota.fasta | head -n 2
 grep -B 1 "AACCAGCGGAGGGATCATTA" ITS_OTU_tax_p__Ascomycota.fasta | head -n 2
 
-# Count
-# same:    .... ..... .........
-grep "AACCTGCGGAAGGATCATTA" ITS_OTU_tax_p__Ascomycota.fasta | wc -l # 1358
-grep "AACCAGCGGAGGGATCATTA" ITS_OTU_tax_p__Ascomycota.fasta | wc -l # 376
-# Total of 1734
-grep ">" ITS_OTU_tax_p__Ascomycota.fasta | wc -l # 2140
-# 1734 / 2140 = 0.8102804 = 81%
+# Count in p__Ascomycota OTUs
+#     .... ..... .........
+grep "AACCTGCGGAAGGATCATTA" ITS_OTU_tax_p__Ascomycota.fasta | wc -l # 1358 OTUs
+grep "AACCAGCGGAGGGATCATTA" ITS_OTU_tax_p__Ascomycota.fasta | wc -l # 376 OTUs
+# Total of 1734 OTUs
+grep ">" ITS_OTU_tax_p__Ascomycota.fasta | wc -l # 2140 OTUs
+# 1734 / 2140 = 0.8102804 = 81% of the OTUs
 
+# Count in all OTUs
+#     .... ..... .........
+grep "AACCTGCGGAAGGATCATTA" ITS_OTU_tax.fasta | wc -l # 4908 OTUs
+grep "AACCAGCGGAGGGATCATTA" ITS_OTU_tax.fasta | wc -l # 507 OTUs
+grep ">" ITS_OTU_tax.fasta | wc -l # 6858 OTUs
+# These hit many things outside of p__Ascomycota!
+
+# For OTU 15 c__Archaeorhizomycetes
+grep "AACCTGCGGAAGTGAGATGT" ITS_OTU_tax.fasta | wc -l # 1 OTU
 
 ```
