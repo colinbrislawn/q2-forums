@@ -4,6 +4,9 @@
 .Rhistory
 .RData
 
+# jupyter
+.ipynb_checkpoints/
+
 # lol, don't store ANY data
 *.qza
 *.qzv
