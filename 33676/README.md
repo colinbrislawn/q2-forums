@@ -6,10 +6,11 @@
 
 ```sh
 wget https://forum.qiime2.org/uploads/short-url/p6bCkKPsAGEa6cjdFMcR5XtcfYy.qza
-wget https://forum.qiime2.org/uploads/short-url/bjChHlEE9MN7nireHlaHQTUrTYd.tsv
-
 mv p6bCkKPsAGEa6cjdFMcR5XtcfYy.qza braycurtis.qza
-mv bjChHlEE9MN7nireHlaHQTUrTYd.tsv sample-metadata.tsv
+
+# already in the repo!
+# wget https://forum.qiime2.org/uploads/short-url/bjChHlEE9MN7nireHlaHQTUrTYd.tsv
+# mv bjChHlEE9MN7nireHlaHQTUrTYd.tsv sample-metadata.tsv
 ```
 
 ## Run
