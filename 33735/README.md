@@ -22,24 +22,12 @@ qiime taxa filter-seqs \
 
 ls -lh
 
-# View number of sequences
-qiime tools inspect-metadata filtered-rep-seqs.qza # keep
-qiime tools inspect-metadata removed-rep-seqs.qza # toss
+qiime feature-table tabulate-seqs \
+  --i-data removed-rep-seqs.qza \
+  --i-taxonomy taxonomy.qza \
+  --p-merge-method intersect \
+  --o-visualization removed-rep-seqs.qzv
+
+qiime tools view removed-rep-seqs.qzv
 
 ```
-
-OUT
-
-```sh
-There was an issue with loading the file # as metadata:
-
-  Metadata file path doesn't exist, or the path points to something other than a file. Please check that the path exists, has read permissions, and points to a regular file (not a directory): #
-
-  There may be more errors present in the metadata file. To get a full report, sample/feature metadata files can be validated with Keemei: https://keemei.qiime2.org
-
-  Find details on QIIME 2 metadata requirements here: https://docs.qiime2.org/2025.7/tutorials/metadata/
-
-```
-
-
-
