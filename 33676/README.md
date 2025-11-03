@@ -1,6 +1,6 @@
 # Readme
 
-[x-ref](https://forum.qiime2.org/t/abbreviating-taxonomic-names-in-r/33642/)
+[x-ref](https://forum.qiime2.org/t/q2-beta-group-performance/33676/8)
 
 ## Prep
 
@@ -16,6 +16,14 @@ mv p6bCkKPsAGEa6cjdFMcR5XtcfYy.qza braycurtis.qza
 ## Run
 
 ```sh
+conda activate qiime2-amplicon-2025.10
+qiime info
+time qiime diversity beta-group-significance \
+  --i-distance-matrix braycurtis.qza \
+  --m-metadata-file sample-metadata.tsv \
+  --m-metadata-column "SampleType" \
+  --o-visualization bgs-colinbrislawn-wsl-qiime2-amplicon-2025.10.qzv
+
 conda activate qiime2-amplicon-2025.7
 qiime info
 time qiime diversity beta-group-significance \
