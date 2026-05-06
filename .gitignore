@@ -10,3 +10,6 @@
 # lol, don't store ANY data
 *.qza
 *.qzv
+# pixi environments
+.pixi/*
+!.pixi/config.toml
