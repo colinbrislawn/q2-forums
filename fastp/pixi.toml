@@ -1,0 +1,15 @@
+[workspace]
+authors = ["Colin Brislawn <cbrisl@gmail.com>"]
+channels = ["conda-forge", "https://conda.anaconda.org/bioconda"]
+name = "fastp"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+sra-tools = ">=3.4.1,<4"
+fastp = ">=1.3.3,<2"
+curl = ">=8.20.0,<9"
+seqtk = ">=1.5,<2"
+gzip = ">=1.14,<2"
