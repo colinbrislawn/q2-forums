@@ -1,0 +1,11 @@
+(rachis-qiime2-2026.4) ttssuu@ttssuu-win-1:~/data/QIIME2$ qiime rescript get-silva-data --p-version 138.2 --p-target SSURef_NR99 --o-silva-sequences silva-138.2-seqs.qza --o-silva-taxonomy silva-138.2-tax.qza
+Saved FeatureData[RNASequence] to: silva-138.2-seqs.qza
+Saved FeatureData[Taxonomy] to: silva-138.2-tax.qza
+(rachis-qiime2-2026.4) ttssuu@ttssuu-win-1:~/data/QIIME2$ qiime tools peek silva-138.2-seqs.qza
+UUID:        10378c35-4393-4536-b0c6-7ad60fef3e30
+Type:        FeatureData[RNASequence]
+Data format: RNASequencesDirectoryFormat
+(rachis-qiime2-2026.4) ttssuu@ttssuu-win-1:~/data/QIIME2$ qiime rescript reverse-transcribe --i-rna-sequences silva-138.2-seqs.qza --o-dna-sequences silva-138.2-dna-seqs.qza
+Saved FeatureData[Sequence] to: silva-138.2-dna-seqs.qza
+(rachis-qiime2-2026.4) ttssuu@ttssuu-win-1:~/data/QIIME2$  qiime feature-classifier extract-reads --i-sequences silva-138.2-dna-seqs.qza --p-f-primer CCTACGGGNGGCWGCAG --p-r-primer GACTACHVGGGTATCTAATCC --p-max-length 600 --o-reads silva-138.2-99-V3V4.qza
+
