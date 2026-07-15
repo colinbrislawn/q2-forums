@@ -125,9 +125,16 @@ pixi run --manifest-path ../pixi.toml qiime rescript reverse-transcribe --i-rna-
 | `rescript extract-seq-segments` (VSEARCH, 10 threads) | **~5m58s** | `silva-138.2-99-V3V4-segments.qza` (47.0M) + `…-unmatched.qza` (2.4M) | vsearch at ~950% CPU, only 2.4M unmatched |
 
 Both methods are fast on this box (~5–6 min) versus the reported ~20 h on
-Windows/WSL2. That ~240× gap strongly suggests the original slowness is dominated
-by WSL2/Windows I/O pathology, not the algorithm itself. Worth confirming with a
-native-Linux or native-Windows run on comparable hardware.
+Windows/WSL2. This reproducer **confirms the command works and is fast on macOS**
+(it re-confirms what the reporter already found on their own Mac in the thread).
+It does **not** diagnose the WSL2 slowness.
+
+> **TODO:** test on WSL2 / native x86 Linux with the reporter's exact conda env
+> (`dataset/conda-list.txt`). Note the reporter's own observation was
+> `%iowait = 0` and `%CPU ~100` (single core pegged) — i.e. **CPU-bound, not
+> I/O-bound** — so the earlier "WSL2 I/O pathology" guess is likely wrong; the
+> real cause is still unknown and needs a native-x86 run (ideally with a
+> profiler) to pin down.
 
 ## Alternative: `rescript extract-seq-segments`
 
